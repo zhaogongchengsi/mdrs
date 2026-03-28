@@ -1,48 +1,22 @@
 # mdrs
 
-A **lightweight** Markdown editor and live-preview app built with Rust and [gpui](https://gpui.rs).
+A lightweight Markdown editor and live-preview app built with Rust and [gpui](https://gpui.rs).
 
 ## Features
 
-- **Split-pane layout** — editor on the left, live preview on the right
-- **Live preview** — the preview updates as you type
-- **Markdown rendering** — headings, paragraphs, bold/italic, inline code, code blocks (with language label), blockquotes, ordered/unordered lists, and horizontal rules
-- **Lightweight** — no Electron, no browser engine; GPU-accelerated native UI via gpui
+- Split-pane editing with live preview
+- Native desktop UI powered by `gpui`
+- Command-line opening for Markdown files: `cargo run -- path/to/file.md`
+- Large-file-aware reads
+- Preview protection for oversized Markdown buffers
 
-## Screenshot
+## Large File Handling
 
-```
-┌──────────────────────────┬──────────────────────────┐
-│  # Hello mdrs            │  Hello mdrs              │
-│                          │                          │
-│  A **lightweight** app   │  A lightweight app       │
-│                          │                          │
-│  ## Features             │  Features                │
-│  - Live preview          │  • Live preview          │
-│  - Fast                  │  • Fast                  │
-└──────────────────────────┴──────────────────────────┘
-       Editor (left)              Preview (right)
-```
+- Files up to 1 MB use a direct read path for lower overhead
+- Files above 1 MB switch to buffered streaming reads
+- Preview parsing is limited to the first 512 KB so the UI stays responsive
 
-## Requirements
-
-- Rust 1.80+
-- **Linux**: `libxcb`, `libxkbcommon`, `libxkbcommon-x11`
-
-  ```sh
-  # Ubuntu / Debian
-  sudo apt install libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev
-  ```
-
-- **macOS**: Xcode command-line tools
-
-  ```sh
-  xcode-select --install
-  ```
-
-- **Windows**: [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **Desktop development with C++** workload (includes the Windows SDK and MSVC linker). A modern GPU with up-to-date drivers is required for DirectX rendering.
-
-## Build & Run
+## Build and Run
 
 ```sh
 git clone https://github.com/zhaogongchengsi/mdrs
@@ -50,22 +24,21 @@ cd mdrs
 cargo run
 ```
 
+Open a file directly:
+
+```sh
+cargo run -- path/to/file.md
+```
+
 ## Architecture
 
 | File | Purpose |
-|---|---|
-| `src/main.rs` | Application entry point, window setup |
-| `src/app.rs` | Root view (`MdrsApp`) — wires editor ↔ preview |
-| `src/editor.rs` | Editor extension point (gpui-component `InputState`) |
-| `src/preview.rs` | Markdown parser + `MarkdownPreview` gpui view |
-
-## Dependencies
-
-| Crate | Purpose |
-|---|---|
-| [`gpui`](https://crates.io/crates/gpui) | GPU-accelerated UI framework by Zed |
-| [`gpui-component`](https://crates.io/crates/gpui-component) | Rich UI components (text editor, theme, …) |
-| [`pulldown-cmark`](https://crates.io/crates/pulldown-cmark) | CommonMark-compliant Markdown parser |
+| --- | --- |
+| `src/main.rs` | Application entry point and startup wiring |
+| `src/file_loader.rs` | Markdown file loading and large-file read strategy |
+| `src/app.rs` | Root UI state, async loading, editor and preview coordination |
+| `src/editor.rs` | Editor extension point |
+| `src/preview.rs` | Markdown parsing and preview rendering |
 
 ## License
 

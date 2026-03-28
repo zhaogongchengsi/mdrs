@@ -1,30 +1,37 @@
-use gpui::{
-    Context, IntoElement, ParentElement, Render, Styled, Window, div, px,
-};
-use gpui_component::{ActiveTheme, v_flex};
+use gpui::{div, px, Context, IntoElement, ParentElement, Render, Styled, Window};
+use gpui_component::{v_flex, ActiveTheme};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
-/// A single rendered block in the Markdown preview.
+use crate::file_loader::format_bytes;
+
+const MAX_PREVIEW_BYTES: usize = 512 * 1024;
+
 #[derive(Debug, Clone)]
 enum MdBlock {
-    /// A heading (h1–h6) with its text content.
-    Heading { level: u8, text: String },
-    /// A paragraph with inline-formatted runs.
-    Paragraph { spans: Vec<Span> },
-    /// A fenced or indented code block.
-    CodeBlock { code: String, lang: Option<String> },
-    /// A horizontal rule.
+    Heading {
+        level: u8,
+        text: String,
+    },
+    Paragraph {
+        spans: Vec<Span>,
+    },
+    CodeBlock {
+        code: String,
+        lang: Option<String>,
+    },
     Rule,
-    /// A block-level quote.
-    Blockquote { spans: Vec<Span> },
-    /// A list (ordered or unordered) with item text.
+    Blockquote {
+        spans: Vec<Span>,
+    },
     List {
         ordered: bool,
         items: Vec<Vec<Span>>,
     },
+    Notice {
+        text: String,
+    },
 }
 
-/// An inline text span with optional formatting.
 #[derive(Debug, Clone)]
 struct Span {
     text: String,
@@ -33,7 +40,6 @@ struct Span {
     code: bool,
 }
 
-/// Parses a Markdown string into a list of [`MdBlock`]s.
 fn parse_markdown(src: &str) -> Vec<MdBlock> {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
@@ -42,8 +48,6 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
     let parser = Parser::new_ext(src, options);
 
     let mut blocks: Vec<MdBlock> = Vec::new();
-
-    // Inline accumulator state
     let mut current_spans: Vec<Span> = Vec::new();
     let mut current_text = String::new();
     let mut bold = false;
@@ -51,7 +55,7 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
 
     let mut in_heading: Option<u8> = None;
     let mut in_blockquote = false;
-    let mut list_stack: Vec<(bool, Vec<Vec<Span>>)> = Vec::new(); // (ordered, items)
+    let mut list_stack: Vec<(bool, Vec<Vec<Span>>)> = Vec::new();
     let mut in_list_item = false;
     let mut in_code_block = false;
     let mut code_block_text = String::new();
@@ -70,7 +74,6 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
 
     for event in parser {
         match event {
-            // ── Tags: open ──────────────────────────────────────────────────
             Event::Start(Tag::Heading { level, .. }) => {
                 let lvl = match level {
                     HeadingLevel::H1 => 1,
@@ -107,7 +110,11 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
                 code_block_lang = match kind {
                     pulldown_cmark::CodeBlockKind::Fenced(lang) => {
                         let s = lang.to_string();
-                        if s.is_empty() { None } else { Some(s) }
+                        if s.is_empty() {
+                            None
+                        } else {
+                            Some(s)
+                        }
                     }
                     pulldown_cmark::CodeBlockKind::Indented => None,
                 };
@@ -120,20 +127,15 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
                 flush_span(&mut current_spans, &mut current_text, bold, italic);
                 bold = true;
             }
-            Event::Start(Tag::Link { .. }) => {
-                // Links are rendered as plain text for simplicity.
-            }
+            Event::Start(Tag::Link { .. }) => {}
             Event::Start(Tag::Image { .. }) => {
-                // Images are rendered as placeholder text.
                 current_text.push_str("[image]");
             }
-
-            // ── Tags: close ─────────────────────────────────────────────────
             Event::End(TagEnd::Heading(_)) => {
                 flush_span(&mut current_spans, &mut current_text, bold, italic);
                 let text = current_spans
                     .iter()
-                    .map(|s| s.text.as_str())
+                    .map(|span| span.text.as_str())
                     .collect::<String>();
                 if let Some(level) = in_heading.take() {
                     blocks.push(MdBlock::Heading { level, text });
@@ -143,12 +145,7 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
             Event::End(TagEnd::Paragraph) => {
                 flush_span(&mut current_spans, &mut current_text, bold, italic);
                 let spans = std::mem::take(&mut current_spans);
-                if in_blockquote {
-                    // Blockquote paragraphs are collected by the outer End(BlockQuote).
-                    // Re-push so we can capture them later.
-                    current_spans = spans;
-                } else if in_list_item {
-                    // Paragraph within a list item — handled by End(Item).
+                if in_blockquote || in_list_item {
                     current_spans = spans;
                 } else if !spans.is_empty() {
                     blocks.push(MdBlock::Paragraph { spans });
@@ -166,7 +163,7 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
                 flush_span(&mut current_spans, &mut current_text, bold, italic);
                 let item_spans = std::mem::take(&mut current_spans);
                 in_list_item = false;
-                if let Some((_, ref mut items)) = list_stack.last_mut() {
+                if let Some((_, items)) = list_stack.last_mut() {
                     items.push(item_spans);
                 }
             }
@@ -189,8 +186,6 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
                 flush_span(&mut current_spans, &mut current_text, bold, italic);
                 bold = false;
             }
-
-            // ── Leaf events ─────────────────────────────────────────────────
             Event::Text(text) => {
                 if in_code_block {
                     code_block_text.push_str(&text);
@@ -215,7 +210,6 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
             Event::Rule => {
                 blocks.push(MdBlock::Rule);
             }
-
             _ => {}
         }
     }
@@ -223,22 +217,77 @@ fn parse_markdown(src: &str) -> Vec<MdBlock> {
     blocks
 }
 
-// ── GPUI view ───────────────────────────────────────────────────────────────
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PreviewStats {
+    pub truncated: bool,
+    pub rendered_bytes: usize,
+    pub total_bytes: usize,
+}
 
-/// The read-only Markdown preview pane.
+fn preview_slice(src: &str) -> (&str, PreviewStats) {
+    let total_bytes = src.len();
+    if total_bytes <= MAX_PREVIEW_BYTES {
+        return (
+            src,
+            PreviewStats {
+                truncated: false,
+                rendered_bytes: total_bytes,
+                total_bytes,
+            },
+        );
+    }
+
+    let mut end = MAX_PREVIEW_BYTES;
+    while end > 0 && !src.is_char_boundary(end) {
+        end -= 1;
+    }
+
+    (
+        &src[..end],
+        PreviewStats {
+            truncated: true,
+            rendered_bytes: end,
+            total_bytes,
+        },
+    )
+}
+
+fn build_preview(src: &str) -> (Vec<MdBlock>, PreviewStats) {
+    let (preview_src, stats) = preview_slice(src);
+    let mut blocks = parse_markdown(preview_src);
+    if stats.truncated {
+        blocks.push(MdBlock::Notice {
+            text: format!(
+                "Preview limited to {} of {} to keep large Markdown files responsive.",
+                format_bytes(stats.rendered_bytes as u64),
+                format_bytes(stats.total_bytes as u64)
+            ),
+        });
+    }
+
+    (blocks, stats)
+}
+
 pub struct MarkdownPreview {
     blocks: Vec<MdBlock>,
+    stats: PreviewStats,
 }
 
 impl MarkdownPreview {
     pub fn new(src: &str) -> Self {
-        Self {
-            blocks: parse_markdown(src),
-        }
+        let (blocks, stats) = build_preview(src);
+        Self { blocks, stats }
     }
 
-    pub fn set_markdown(&mut self, src: &str) {
-        self.blocks = parse_markdown(src);
+    pub fn set_markdown(&mut self, src: &str) -> PreviewStats {
+        let (blocks, stats) = build_preview(src);
+        self.blocks = blocks;
+        self.stats = stats;
+        stats
+    }
+
+    pub fn stats(&self) -> PreviewStats {
+        self.stats
     }
 }
 
@@ -268,11 +317,9 @@ impl Render for MarkdownPreview {
                             .child(text.clone()),
                     );
                 }
-
                 MdBlock::Paragraph { spans } => {
                     container = container.child(render_spans(spans, fg, muted, code_bg));
                 }
-
                 MdBlock::CodeBlock { code, lang } => {
                     let mut code_block = div()
                         .rounded_md()
@@ -280,7 +327,6 @@ impl Render for MarkdownPreview {
                         .border_1()
                         .border_color(border)
                         .overflow_hidden();
-                    // Show language label if present.
                     if let Some(language) = lang {
                         code_block = code_block.child(
                             div()
@@ -303,17 +349,9 @@ impl Render for MarkdownPreview {
                     );
                     container = container.child(code_block);
                 }
-
                 MdBlock::Rule => {
-                    container = container.child(
-                        div()
-                            .w_full()
-                            .h(px(1.0))
-                            .bg(border)
-                            .my_2(),
-                    );
+                    container = container.child(div().w_full().h(px(1.0)).bg(border).my_2());
                 }
-
                 MdBlock::Blockquote { spans } => {
                     container = container.child(
                         div()
@@ -324,30 +362,37 @@ impl Render for MarkdownPreview {
                             .child(render_spans(spans, muted, muted, code_bg)),
                     );
                 }
-
                 MdBlock::List { ordered, items } => {
                     let mut list_div = v_flex().gap_1().pl_4();
                     for (idx, item_spans) in items.iter().enumerate() {
                         let bullet = if *ordered {
                             format!("{}. ", idx + 1)
                         } else {
-                            "• ".to_string()
+                            "- ".to_string()
                         };
                         list_div = list_div.child(
                             div()
                                 .flex()
                                 .flex_row()
                                 .gap_1()
-                                .child(
-                                    div()
-                                        .text_color(muted)
-                                        .flex_shrink_0()
-                                        .child(bullet),
-                                )
+                                .child(div().text_color(muted).flex_shrink_0().child(bullet))
                                 .child(render_spans(item_spans, fg, muted, code_bg)),
                         );
                     }
                     container = container.child(list_div);
+                }
+                MdBlock::Notice { text } => {
+                    container = container.child(
+                        div()
+                            .rounded_md()
+                            .border_1()
+                            .border_color(border)
+                            .bg(code_bg)
+                            .p_3()
+                            .text_size(px(12.0))
+                            .text_color(muted)
+                            .child(text.clone()),
+                    );
                 }
             }
         }
@@ -356,7 +401,6 @@ impl Render for MarkdownPreview {
     }
 }
 
-/// Returns (font_size_px, font_weight) for a given heading level.
 fn heading_style(level: u8) -> (f32, gpui::FontWeight) {
     match level {
         1 => (32.0, gpui::FontWeight::BOLD),
@@ -368,7 +412,6 @@ fn heading_style(level: u8) -> (f32, gpui::FontWeight) {
     }
 }
 
-/// Renders a slice of [`Span`]s as a horizontal-wrapping flex container.
 fn render_spans(
     spans: &[Span],
     fg: gpui::Hsla,
@@ -377,7 +420,6 @@ fn render_spans(
 ) -> gpui::Div {
     let mut row = div().flex().flex_row().flex_wrap().gap_x_1().text_color(fg);
     for span in spans {
-        // Only skip spans that are purely empty (not whitespace that matters).
         if span.text.is_empty() {
             continue;
         }
@@ -401,4 +443,19 @@ fn render_spans(
         row = row.child(elem);
     }
     row
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn preview_limits_large_documents_without_breaking_utf8() {
+        let large = "你好，Markdown\n".repeat((MAX_PREVIEW_BYTES / 18) + 4096);
+        let (preview_src, stats) = preview_slice(&large);
+
+        assert!(stats.truncated);
+        assert!(stats.rendered_bytes <= MAX_PREVIEW_BYTES);
+        assert!(large.is_char_boundary(preview_src.len()));
+    }
 }

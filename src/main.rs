@@ -2,13 +2,20 @@
 
 mod app;
 mod editor;
+mod file_loader;
 mod preview;
 
-use gpui::{Application, Bounds, TitlebarOptions, WindowBounds, WindowOptions, prelude::*, px, size};
+use std::path::PathBuf;
+
+use gpui::{
+    prelude::*, px, size, Application, Bounds, TitlebarOptions, WindowBounds, WindowOptions,
+};
 use gpui_component::Root;
 
 fn main() {
-    Application::new().run(|cx| {
+    let initial_file = std::env::args_os().nth(1).map(PathBuf::from);
+
+    Application::new().run(move |cx| {
         gpui_component::init(cx);
 
         let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
@@ -35,7 +42,8 @@ fn main() {
                 ..Default::default()
             },
             |window, cx| {
-                let view = cx.new(|cx| app::MdrsApp::new(window, cx));
+                let initial_file = initial_file.clone();
+                let view = cx.new(|cx| app::MdrsApp::new(window, initial_file, cx));
                 cx.new(|cx| Root::new(view, window, cx))
             },
         )
