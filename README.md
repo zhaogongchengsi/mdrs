@@ -27,14 +27,20 @@ A **lightweight** Markdown editor and live-preview app built with Rust and [gpui
 ## Requirements
 
 - Rust 1.80+
-- Linux: `libxcb`, `libxkbcommon`, `libxkbcommon-x11`
+- **Linux**: `libxcb`, `libxkbcommon`, `libxkbcommon-x11`
 
   ```sh
   # Ubuntu / Debian
   sudo apt install libxcb1-dev libxkbcommon-dev libxkbcommon-x11-dev
   ```
 
-- macOS: Xcode command-line tools
+- **macOS**: Xcode command-line tools
+
+  ```sh
+  xcode-select --install
+  ```
+
+- **Windows**: [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **Desktop development with C++** workload (includes the Windows SDK and MSVC linker). A modern GPU with up-to-date drivers is required for DirectX rendering.
 
 ## Build & Run
 
