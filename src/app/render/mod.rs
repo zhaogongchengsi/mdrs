@@ -59,8 +59,6 @@ impl Render for MdrsApp {
                 current_page: self.current_page,
                 show_edit,
                 sidebar_toggleable: self.launch_context == LaunchContext::Folder,
-                source_label: self.source_label(),
-                page_title: self.page_title(),
             }))
             .child(body)
             .child(

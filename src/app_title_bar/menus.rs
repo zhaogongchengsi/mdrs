@@ -46,21 +46,6 @@ pub(super) fn render_workspace_actions(
 ) -> impl IntoElement {
     let mut right = h_flex().items_center().gap_1();
     right = right.child(
-        Button::new("titlebar-settings")
-            .icon(AppIcon::Settings)
-            .label("Settings")
-            .ghost()
-            .on_click({
-                let app = app.clone();
-                move |_, _, cx| {
-                    app.update(cx, |app, cx| {
-                        app.open_settings();
-                        cx.notify();
-                    });
-                }
-            }),
-    );
-    right = right.child(
         Button::new("titlebar-preview")
             .icon(AppIcon::Preview)
             .label("Preview")
@@ -147,6 +132,20 @@ fn render_file_menu(app: Entity<MdrsApp>) -> impl IntoElement {
                     });
                 }
             }))
+            .separator()
+            .item(
+                PopupMenuItem::new("Settings")
+                    .icon(AppIcon::Settings)
+                    .on_click({
+                        let app = app.clone();
+                        move |_, _, cx| {
+                            app.update(cx, |app, cx| {
+                                app.open_settings();
+                                cx.notify();
+                            });
+                        }
+                    }),
+            )
         })
 }
 

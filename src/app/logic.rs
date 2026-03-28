@@ -380,22 +380,6 @@ impl MdrsApp {
         cx.notify();
     }
 
-    pub(super) fn source_label(&self) -> String {
-        if let Some(path) = &self.current_path {
-            return path.display().to_string();
-        }
-
-        match self.launch_context {
-            LaunchContext::Scratch => "Untitled document".to_string(),
-            LaunchContext::SingleFile => "Markdown document".to_string(),
-            LaunchContext::Folder => self
-                .workspace_root
-                .as_ref()
-                .map(|path| format!("Workspace: {}", path.display()))
-                .unwrap_or_else(|| "Workspace".to_string()),
-        }
-    }
-
     pub(super) fn status_label(&self, preview_stats: PreviewStats) -> String {
         let mut parts = Vec::new();
 
@@ -461,13 +445,6 @@ impl MdrsApp {
             .and_then(|name| name.to_str())
             .map(str::to_string)
             .unwrap_or_else(|| "Untitled.md".to_string())
-    }
-
-    pub(super) fn page_title(&self) -> &'static str {
-        match self.current_page {
-            AppPage::Workspace => "Workspace",
-            AppPage::Settings => "Settings",
-        }
     }
 }
 

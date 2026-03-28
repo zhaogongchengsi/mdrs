@@ -5,7 +5,7 @@ use gpui_component::{
     v_flex, ActiveTheme, Selectable,
 };
 
-use crate::app::MdrsApp;
+use crate::{app::MdrsApp, app_icon::AppIcon};
 
 impl MdrsApp {
     pub(super) fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -31,9 +31,12 @@ impl MdrsApp {
                 let is_selected = current_path.as_ref() == Some(&file.path);
                 file_list = file_list.child(
                     Button::new(("workspace-file", index))
+                        .icon(AppIcon::File)
                         .label(file.label())
                         .selected(is_selected)
                         .ghost()
+                        .w_full()
+                        .text_size(gpui::px(13.0))
                         .on_click({
                             let entity = entity.clone();
                             move |_, window, cx| {
@@ -76,39 +79,19 @@ impl MdrsApp {
                         ),
                     )
                     .child(
-                        v_flex()
-                            .w_full()
-                            .px_3()
-                            .py_3()
-                            .gap_2()
-                            .child(
-                                Button::new("workspace-switch")
-                                    .label("Switch Workspace")
-                                    .ghost()
-                                    .on_click({
-                                        let entity = entity.clone();
-                                        move |_, window, cx| {
-                                            entity.update(cx, |app, cx| {
-                                                app.prompt_open_folder(window, cx);
-                                            });
-                                        }
-                                    }),
-                            )
-                            .child(
-                                Button::new("workspace-settings")
-                                    .label("Settings")
-                                    .selected(self.current_page == crate::app::AppPage::Settings)
-                                    .ghost()
-                                    .on_click({
-                                        let entity = entity.clone();
-                                        move |_, _, cx| {
-                                            entity.update(cx, |app, cx| {
-                                                app.current_page = crate::app::AppPage::Settings;
-                                                cx.notify();
-                                            });
-                                        }
-                                    }),
-                            ),
+                        v_flex().w_full().px_3().py_3().gap_2().child(
+                            Button::new("workspace-switch")
+                                .label("Switch Workspace")
+                                .ghost()
+                                .on_click({
+                                    let entity = entity.clone();
+                                    move |_, window, cx| {
+                                        entity.update(cx, |app, cx| {
+                                            app.prompt_open_folder(window, cx);
+                                        });
+                                    }
+                                }),
+                        ),
                     )
                     .child(
                         div().flex_1().min_h_0().overflow_hidden().child(
@@ -121,7 +104,7 @@ impl MdrsApp {
                                 .overflow_y_scrollbar()
                                 .child(
                                     div()
-                                        .px_1()
+                                        .px_2()
                                         .text_color(muted)
                                         .text_size(gpui::px(11.0))
                                         .child("FILES"),
