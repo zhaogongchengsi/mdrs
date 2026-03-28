@@ -1,8 +1,9 @@
 use gpui::{div, Context, IntoElement, ParentElement, Styled};
 use gpui_component::{
     button::{Button, ButtonVariants},
+    h_flex,
     scroll::ScrollableElement,
-    v_flex, ActiveTheme, Selectable,
+    v_flex, ActiveTheme, Icon, Selectable, Sizable, Size,
 };
 
 use crate::{app::MdrsApp, app_icon::AppIcon};
@@ -29,24 +30,20 @@ impl MdrsApp {
             for (index, file) in self.workspace_files.iter().enumerate() {
                 let file_path = file.path.clone();
                 let is_selected = current_path.as_ref() == Some(&file.path);
-                file_list = file_list.child(
-                    Button::new(("workspace-file", index))
-                        .icon(AppIcon::File)
-                        .label(file.label())
-                        .selected(is_selected)
-                        .ghost()
-                        .w_full()
-                        .text_size(gpui::px(13.0))
-                        .on_click({
-                            let entity = entity.clone();
-                            move |_, window, cx| {
-                                let file_path = file_path.clone();
-                                entity.update(cx, |app, cx| {
-                                    app.open_file(file_path, window, cx);
-                                });
-                            }
-                        }),
-                );
+                file_list = file_list.child(render_workspace_file_item(
+                    ("workspace-file", index),
+                    file.label(),
+                    is_selected,
+                    {
+                        let entity = entity.clone();
+                        move |_, window, cx| {
+                            let file_path = file_path.clone();
+                            entity.update(cx, |app, cx| {
+                                app.open_file(file_path, window, cx);
+                            });
+                        }
+                    },
+                ));
             }
         }
 
@@ -102,16 +99,55 @@ impl MdrsApp {
                                 .pb_4()
                                 .gap_2()
                                 .overflow_y_scrollbar()
-                                .child(
-                                    div()
-                                        .px_2()
-                                        .text_color(muted)
-                                        .text_size(gpui::px(11.0))
-                                        .child("FILES"),
-                                )
+                                .child(sidebar_section_label("FILES", muted))
                                 .child(file_list),
                         ),
                     ),
             )
     }
+}
+
+fn render_workspace_file_item(
+    id: impl Into<gpui::ElementId>,
+    label: impl Into<String>,
+    is_selected: bool,
+    on_click: impl Fn(&gpui::ClickEvent, &mut gpui::Window, &mut gpui::App) + 'static,
+) -> Button {
+    Button::new(id)
+        .selected(is_selected)
+        .ghost()
+        .w_full()
+        .px_2()
+        .child(
+            h_flex()
+                .w_full()
+                .items_center()
+                .gap_2()
+                .child(
+                    div()
+                        .w(gpui::px(16.0))
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(Icon::from(AppIcon::File).with_size(Size::Small)),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .truncate()
+                        .text_size(gpui::px(13.0))
+                        .child(label.into()),
+                ),
+        )
+        .on_click(on_click)
+}
+
+fn sidebar_section_label(label: impl Into<String>, muted: gpui::Hsla) -> gpui::Div {
+    div()
+        .px_2()
+        .text_color(muted)
+        .text_size(gpui::px(11.0))
+        .child(label.into())
 }
