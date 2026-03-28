@@ -1,5 +1,5 @@
 use gpui::{div, px, Context, IntoElement, ParentElement, Render, Styled, Window};
-use gpui_component::{v_flex, ActiveTheme};
+use gpui_component::{scroll::ScrollableElement, v_flex, ActiveTheme};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 use crate::file_loader::format_bytes;
@@ -340,12 +340,14 @@ impl Render for MarkdownPreview {
                         );
                     }
                     code_block = code_block.child(
-                        div()
-                            .p_3()
-                            .font_family("monospace")
-                            .text_size(px(13.0))
-                            .text_color(fg)
-                            .child(code.trim_end_matches('\n').to_string()),
+                        div().overflow_x_scrollbar().child(
+                            div()
+                                .p_3()
+                                .font_family("monospace")
+                                .text_size(px(13.0))
+                                .text_color(fg)
+                                .child(code.trim_end_matches('\n').to_string()),
+                        ),
                     );
                     container = container.child(code_block);
                 }

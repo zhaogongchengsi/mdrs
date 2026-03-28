@@ -1,7 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use gpui::{div, prelude::*, Context, Entity, IntoElement, ParentElement, Render, Styled, Window};
+use gpui::{
+    div, prelude::*, AnyElement, Context, Entity, IntoElement, ParentElement, Render, Styled,
+    Window,
+};
 use gpui_component::{
     button::{Button, ButtonVariants},
     h_flex,
@@ -335,11 +338,13 @@ impl MdrsApp {
         div()
             .w(gpui::px(248.0))
             .h_full()
+            .min_h_0()
             .border_r_1()
             .border_color(border)
             .child(
                 v_flex()
                     .size_full()
+                    .min_h_0()
                     .child(
                         div().px_4().py_3().border_b_1().border_color(border).child(
                             v_flex()
@@ -368,12 +373,14 @@ impl MdrsApp {
                             .child(sidebar_entry("Settings", muted, border)),
                     )
                     .child(
-                        div().flex_1().overflow_y_scrollbar().child(
+                        div().flex_1().min_h_0().overflow_hidden().child(
                             v_flex()
+                                .min_h_0()
                                 .w_full()
                                 .px_3()
                                 .pb_4()
                                 .gap_2()
+                                .overflow_y_scrollbar()
                                 .child(
                                     div()
                                         .px_1()
@@ -387,7 +394,7 @@ impl MdrsApp {
             )
     }
 
-    fn render_preview_content(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_preview_content(&self, cx: &mut Context<Self>) -> AnyElement {
         let muted = cx.theme().colors.muted_foreground;
         if self.is_loading {
             return div()
@@ -396,7 +403,8 @@ impl MdrsApp {
                 .items_center()
                 .justify_center()
                 .text_color(muted)
-                .child("Loading preview...");
+                .child("Loading preview...")
+                .into_any_element();
         }
 
         if let Some(error) = &self.load_error {
@@ -406,7 +414,8 @@ impl MdrsApp {
                 .items_center()
                 .justify_center()
                 .text_color(muted)
-                .child(error.clone());
+                .child(error.clone())
+                .into_any_element();
         }
 
         if self.current_path.is_none() && self.launch_context == LaunchContext::Folder {
@@ -416,10 +425,16 @@ impl MdrsApp {
                 .items_center()
                 .justify_center()
                 .text_color(muted)
-                .child("Select a Markdown file to preview it.");
+                .child("Select a Markdown file to preview it.")
+                .into_any_element();
         }
 
-        div().flex_1().child(self.preview.clone())
+        div()
+            .flex_1()
+            .min_h_0()
+            .overflow_y_scrollbar()
+            .child(self.preview.clone())
+            .into_any_element()
     }
 
     fn render_editor_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -430,11 +445,14 @@ impl MdrsApp {
         div()
             .flex_1()
             .h_full()
+            .min_h_0()
+            .overflow_hidden()
             .border_r_1()
             .border_color(border)
             .child(
                 v_flex()
                     .size_full()
+                    .min_h_0()
                     .child(panel_header(
                         "Editor",
                         &self.document_name(),
@@ -445,6 +463,7 @@ impl MdrsApp {
                     .child(
                         div()
                             .flex_1()
+                            .min_h_0()
                             .px_4()
                             .py_3()
                             .child(Input::new(&self.editor).h_full()),
@@ -457,9 +476,10 @@ impl MdrsApp {
         let fg = cx.theme().colors.foreground;
         let muted = cx.theme().colors.muted_foreground;
 
-        div().flex_1().h_full().child(
+        div().flex_1().h_full().min_h_0().overflow_hidden().child(
             v_flex()
                 .size_full()
+                .min_h_0()
                 .child(panel_header(
                     "Preview",
                     &self.document_name(),
@@ -470,6 +490,8 @@ impl MdrsApp {
                 .child(
                     div()
                         .flex_1()
+                        .min_h_0()
+                        .overflow_hidden()
                         .px_4()
                         .py_3()
                         .child(self.render_preview_content(cx)),
@@ -488,7 +510,7 @@ impl Render for MdrsApp {
         let preview_stats = self.preview.read(cx).stats();
         let show_edit = self.can_edit();
 
-        let mut body = h_flex().flex_1().w_full();
+        let mut body = h_flex().flex_1().w_full().min_h_0().overflow_hidden();
         if self.has_sidebar() {
             body = body.child(self.render_sidebar(cx));
         }
@@ -497,10 +519,16 @@ impl Render for MdrsApp {
             PaneMode::Preview => h_flex()
                 .flex_1()
                 .w_full()
+                .h_full()
+                .min_h_0()
+                .overflow_hidden()
                 .child(self.render_preview_panel(cx)),
             PaneMode::Edit => h_flex()
                 .flex_1()
                 .w_full()
+                .h_full()
+                .min_h_0()
+                .overflow_hidden()
                 .child(self.render_editor_panel(cx))
                 .child(self.render_preview_panel(cx)),
         };
@@ -571,6 +599,7 @@ impl Render for MdrsApp {
                     )
                     .child(controls),
             )
+            .child(body)
             .child(
                 h_flex()
                     .w_full()
@@ -578,7 +607,7 @@ impl Render for MdrsApp {
                     .px_4()
                     .py_2()
                     .justify_between()
-                    .border_b_1()
+                    .border_t_1()
                     .border_color(border)
                     .text_size(gpui::px(12.0))
                     .text_color(muted)
@@ -589,7 +618,6 @@ impl Render for MdrsApp {
                     }))
                     .child(div().child(self.status_label(preview_stats))),
             )
-            .child(body)
     }
 }
 
