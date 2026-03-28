@@ -1,10 +1,18 @@
 use gpui::{Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, prelude::*};
 use gpui_component::{
-    ActiveTheme, h_flex,
+    ActiveTheme, Selectable, h_flex, v_flex,
+    button::{Button, ButtonVariants},
     input::{Input, InputEvent, InputState},
 };
 
 use crate::preview::MarkdownPreview;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ViewMode {
+    Split,
+    EditorOnly,
+    PreviewOnly,
+}
 
 const DEFAULT_MARKDOWN: &str = r#"# Welcome to mdrs
 
@@ -37,6 +45,7 @@ pub struct MdrsApp {
     editor: Entity<InputState>,
     preview: Entity<MarkdownPreview>,
     _subscription: gpui::Subscription,
+    view_mode: ViewMode,
 }
 
 impl MdrsApp {
@@ -72,6 +81,7 @@ impl MdrsApp {
             editor,
             preview,
             _subscription: subscription,
+            view_mode: ViewMode::Split,
         }
     }
 }
@@ -80,27 +90,111 @@ impl Render for MdrsApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let bg = cx.theme().colors.background;
         let border = cx.theme().colors.border;
+        let entity = cx.entity();
+        let view_mode = self.view_mode;
 
-        h_flex()
+        let content = match view_mode {
+            ViewMode::Split => h_flex()
+                .flex_1()
+                .w_full()
+                .child(
+                    div()
+                        .w_1_2()
+                        .h_full()
+                        .border_r_1()
+                        .border_color(border)
+                        .child(Input::new(&self.editor).h_full()),
+                )
+                .child(
+                    div()
+                        .id("preview-pane")
+                        .w_1_2()
+                        .h_full()
+                        .overflow_y_scroll()
+                        .child(self.preview.clone()),
+                ),
+            ViewMode::EditorOnly => h_flex()
+                .flex_1()
+                .w_full()
+                .child(
+                    div()
+                        .w_full()
+                        .h_full()
+                        .child(Input::new(&self.editor).h_full()),
+                ),
+            ViewMode::PreviewOnly => h_flex()
+                .flex_1()
+                .w_full()
+                .child(
+                    div()
+                        .id("preview-pane")
+                        .w_full()
+                        .h_full()
+                        .overflow_y_scroll()
+                        .child(self.preview.clone()),
+                ),
+        };
+
+        v_flex()
             .size_full()
             .bg(bg)
-            // Editor pane (left half)
+            // Toolbar
             .child(
-                div()
-                    .w_1_2()
-                    .h_full()
-                    .border_r_1()
+                h_flex()
+                    .w_full()
+                    .flex_shrink_0()
+                    .p_2()
+                    .gap_1()
+                    .border_b_1()
                     .border_color(border)
-                    .child(Input::new(&self.editor).h_full()),
+                    .justify_center()
+                    .child(
+                        Button::new("editor-mode")
+                            .label("Editor")
+                            .selected(view_mode == ViewMode::EditorOnly)
+                            .ghost()
+                            .on_click({
+                                let e = entity.clone();
+                                move |_, _, cx| {
+                                    e.update(cx, |view, cx| {
+                                        view.view_mode = ViewMode::EditorOnly;
+                                        cx.notify();
+                                    });
+                                }
+                            }),
+                    )
+                    .child(
+                        Button::new("split-mode")
+                            .label("Split")
+                            .selected(view_mode == ViewMode::Split)
+                            .ghost()
+                            .on_click({
+                                let e = entity.clone();
+                                move |_, _, cx| {
+                                    e.update(cx, |view, cx| {
+                                        view.view_mode = ViewMode::Split;
+                                        cx.notify();
+                                    });
+                                }
+                            }),
+                    )
+                    .child(
+                        Button::new("preview-mode")
+                            .label("Preview")
+                            .selected(view_mode == ViewMode::PreviewOnly)
+                            .ghost()
+                            .on_click({
+                                let e = entity.clone();
+                                move |_, _, cx| {
+                                    e.update(cx, |view, cx| {
+                                        view.view_mode = ViewMode::PreviewOnly;
+                                        cx.notify();
+                                    });
+                                }
+                            }),
+                    ),
             )
-            // Preview pane (right half)
-            .child(
-                div()
-                    .id("preview-pane")
-                    .w_1_2()
-                    .h_full()
-                    .overflow_y_scroll()
-                    .child(self.preview.clone()),
-            )
+            // Content area
+            .child(content)
     }
 }
