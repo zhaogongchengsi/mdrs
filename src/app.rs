@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use gpui::{
-    div, prelude::*, AnyElement, Context, Entity, IntoElement, ParentElement, Render, Styled,
-    Window,
+    div, prelude::*, AnyElement, Context, Entity, IntoElement, ParentElement, PathPromptOptions,
+    Render, Styled, Window,
 };
 use gpui_component::{
     button::{Button, ButtonVariants},
@@ -68,6 +68,7 @@ pub struct MdrsApp {
     is_loading: bool,
     is_dirty: bool,
     load_error: Option<String>,
+    status_message: Option<String>,
     suppress_dirty_tracking: bool,
 }
 
@@ -126,6 +127,7 @@ impl MdrsApp {
             is_loading: false,
             is_dirty: false,
             load_error: None,
+            status_message: None,
             suppress_dirty_tracking: false,
         };
 
@@ -157,6 +159,7 @@ impl MdrsApp {
 
         if !self.suppress_dirty_tracking {
             self.load_error = None;
+            self.status_message = None;
             if self.current_path.is_some() {
                 self.is_dirty = true;
             }
@@ -174,6 +177,7 @@ impl MdrsApp {
         self.is_loading = true;
         self.is_dirty = false;
         self.load_error = None;
+        self.status_message = None;
         self.document_bytes = 0;
         self.pane_mode = PaneMode::Preview;
         cx.notify();
@@ -209,6 +213,7 @@ impl MdrsApp {
                 self.read_strategy = Some(loaded.read_strategy);
                 self.is_dirty = false;
                 self.load_error = None;
+                self.status_message = None;
                 self.suppress_dirty_tracking = true;
                 self.editor.update(cx, |editor, cx| {
                     editor.set_value(loaded.text, window, cx);
@@ -221,6 +226,7 @@ impl MdrsApp {
                 self.read_strategy = None;
                 self.is_dirty = false;
                 self.load_error = Some(error.to_string());
+                self.status_message = None;
                 self.preview.update(cx, |preview, cx| {
                     preview.set_markdown("");
                     cx.notify();
@@ -278,6 +284,10 @@ impl MdrsApp {
             ));
         }
 
+        if let Some(message) = &self.status_message {
+            parts.push(message.clone());
+        }
+
         parts.join(" · ")
     }
 
@@ -332,6 +342,189 @@ impl MdrsApp {
 
     pub(crate) fn open_workspace_page(&mut self) {
         self.current_page = AppPage::Workspace;
+    }
+
+    pub(crate) fn prompt_open_file(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let receiver = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: false,
+            prompt: Some("Open Markdown file".into()),
+        });
+        let this = cx.weak_entity();
+        window
+            .spawn(cx, async move |cx| {
+                if let Ok(Ok(Some(mut paths))) = receiver.await {
+                    if let Some(path) = paths.pop() {
+                        let _ = this.update_in(cx, move |app: &mut MdrsApp, window, cx| {
+                            app.open_path(path, window, cx);
+                        });
+                    }
+                }
+            })
+            .detach();
+    }
+
+    pub(crate) fn prompt_open_folder(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let receiver = cx.prompt_for_paths(PathPromptOptions {
+            files: false,
+            directories: true,
+            multiple: false,
+            prompt: Some("Open folder".into()),
+        });
+        let this = cx.weak_entity();
+        window
+            .spawn(cx, async move |cx| {
+                if let Ok(Ok(Some(mut paths))) = receiver.await {
+                    if let Some(path) = paths.pop() {
+                        let _ = this.update_in(cx, move |app: &mut MdrsApp, window, cx| {
+                            app.open_workspace(path, window, cx);
+                        });
+                    }
+                }
+            })
+            .detach();
+    }
+
+    pub(crate) fn save_document(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.status_message = None;
+
+        if let Some(path) = self.current_path.clone() {
+            self.save_to_path(path, window, cx);
+            return;
+        }
+
+        let directory = self
+            .workspace_root
+            .clone()
+            .or_else(|| std::env::current_dir().ok())
+            .unwrap_or_else(|| PathBuf::from("."));
+        let receiver = cx.prompt_for_new_path(&directory, Some("Untitled.md"));
+        let this = cx.weak_entity();
+        window
+            .spawn(cx, async move |cx| {
+                if let Ok(Ok(Some(path))) = receiver.await {
+                    let _ = this.update_in(cx, move |app: &mut MdrsApp, window, cx| {
+                        app.save_to_path(path, window, cx);
+                    });
+                }
+            })
+            .detach();
+    }
+
+    fn open_path(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        self.current_page = AppPage::Workspace;
+        match determine_launch_context(Some(&path)) {
+            LaunchContext::Folder => self.open_workspace(path, window, cx),
+            LaunchContext::SingleFile | LaunchContext::Scratch => {
+                self.launch_context = LaunchContext::SingleFile;
+                self.sidebar_open = false;
+                self.workspace_root = None;
+                self.workspace_files.clear();
+                self.open_file(path, window, cx);
+            }
+        }
+    }
+
+    fn open_workspace(&mut self, root: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        self.launch_context = LaunchContext::Folder;
+        self.current_page = AppPage::Workspace;
+        self.sidebar_open = true;
+        self.workspace_root = Some(root.clone());
+        self.current_path = None;
+        self.document_bytes = 0;
+        self.read_strategy = None;
+        self.is_loading = false;
+        self.is_dirty = false;
+        self.status_message = None;
+        self.load_error = match collect_markdown_files(&root) {
+            Ok(files) => {
+                self.workspace_files = files;
+                None
+            }
+            Err(error) => {
+                self.workspace_files.clear();
+                Some(format!("Failed to scan workspace: {error}"))
+            }
+        };
+        self.set_document_contents("", window, cx);
+        self.pane_mode = PaneMode::Preview;
+        cx.notify();
+    }
+
+    fn set_document_contents(
+        &mut self,
+        contents: impl Into<String>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let contents = contents.into();
+        self.suppress_dirty_tracking = true;
+        self.editor.update(cx, |editor, cx| {
+            editor.set_value(contents, window, cx);
+        });
+        self.suppress_dirty_tracking = false;
+    }
+
+    fn save_to_path(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        let text = self.editor.read(cx).value().to_string();
+        let this = cx.weak_entity();
+        window
+            .spawn(cx, async move |cx| {
+                let write_path = path.clone();
+                let result = cx
+                    .background_executor()
+                    .spawn(async move {
+                        if let Some(parent) = write_path.parent() {
+                            fs::create_dir_all(parent)?;
+                        }
+                        fs::write(&write_path, text)?;
+                        Ok::<(), std::io::Error>(())
+                    })
+                    .await;
+                let _ = this.update_in(cx, move |app: &mut MdrsApp, _window, cx| {
+                    app.finish_save(path, result, cx);
+                });
+            })
+            .detach();
+    }
+
+    fn finish_save(
+        &mut self,
+        path: PathBuf,
+        result: Result<(), std::io::Error>,
+        cx: &mut Context<Self>,
+    ) {
+        match result {
+            Ok(()) => {
+                let in_workspace = self
+                    .workspace_root
+                    .as_ref()
+                    .is_some_and(|root| path.starts_with(root));
+
+                if !in_workspace {
+                    self.launch_context = LaunchContext::SingleFile;
+                    self.sidebar_open = false;
+                    self.workspace_root = None;
+                    self.workspace_files.clear();
+                } else if let Some(root) = self.workspace_root.clone() {
+                    self.workspace_files = collect_markdown_files(&root).unwrap_or_default();
+                }
+
+                self.current_page = AppPage::Workspace;
+                self.current_path = Some(path.clone());
+                self.document_bytes = self.editor.read(cx).value().len() as u64;
+                self.read_strategy = None;
+                self.is_dirty = false;
+                self.load_error = None;
+                self.status_message = Some(format!("Saved {}", path.display()));
+            }
+            Err(error) => {
+                self.status_message = Some(format!("Failed to save file: {error}"));
+            }
+        }
+
+        cx.notify();
     }
 
     fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -410,7 +603,15 @@ impl MdrsApp {
                             .child(
                                 Button::new("workspace-switch")
                                     .label("Switch Workspace")
-                                    .ghost(),
+                                    .ghost()
+                                    .on_click({
+                                        let entity = entity.clone();
+                                        move |_, window, cx| {
+                                            entity.update(cx, |app, cx| {
+                                                app.prompt_open_folder(window, cx);
+                                            });
+                                        }
+                                    }),
                             )
                             .child(
                                 Button::new("workspace-settings")
