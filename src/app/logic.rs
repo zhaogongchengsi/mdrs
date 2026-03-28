@@ -428,24 +428,6 @@ impl MdrsApp {
             && self.launch_context == LaunchContext::Folder
             && self.sidebar_open
     }
-
-    pub(super) fn workspace_name(&self) -> String {
-        self.workspace_root
-            .as_ref()
-            .and_then(|path| path.file_name())
-            .and_then(|name| name.to_str())
-            .map(str::to_string)
-            .unwrap_or_else(|| "Workspace".to_string())
-    }
-
-    pub(super) fn document_name(&self) -> String {
-        self.current_path
-            .as_ref()
-            .and_then(|path| path.file_name())
-            .and_then(|name| name.to_str())
-            .map(str::to_string)
-            .unwrap_or_else(|| "Untitled.md".to_string())
-    }
 }
 
 pub(super) fn determine_launch_context(initial_target: Option<&Path>) -> LaunchContext {

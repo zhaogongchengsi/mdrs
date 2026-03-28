@@ -59,55 +59,18 @@ impl MdrsApp {
             .border_r_1()
             .border_color(border)
             .child(
-                v_flex()
-                    .size_full()
-                    .min_h_0()
-                    .child(
-                        div().px_4().py_3().border_b_1().border_color(border).child(
-                            v_flex()
-                                .gap_1()
-                                .child(
-                                    div()
-                                        .text_color(muted)
-                                        .text_size(gpui::px(11.0))
-                                        .child("WORKSPACE"),
-                                )
-                                .child(
-                                    div()
-                                        .text_color(fg)
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                        .child(self.workspace_name()),
-                                ),
-                        ),
-                    )
-                    .child(
-                        v_flex().w_full().px_2().py_3().gap_2().child(
-                            Button::new("workspace-switch")
-                                .label("Switch Workspace")
-                                .ghost()
-                                .on_click({
-                                    let entity = entity.clone();
-                                    move |_, window, cx| {
-                                        entity.update(cx, |app, cx| {
-                                            app.prompt_open_folder(window, cx);
-                                        });
-                                    }
-                                }),
-                        ),
-                    )
-                    .child(
-                        div().flex_1().min_h_0().overflow_hidden().child(
-                            v_flex()
-                                .min_h_0()
-                                .w_full()
-                                .px_2()
-                                .pb_4()
-                                .gap_2()
-                                .overflow_y_scrollbar()
-                                .child(sidebar_section_label("FILES", muted))
-                                .child(file_list),
-                        ),
-                    ),
+                div().flex_1().min_h_0().overflow_hidden().child(
+                    v_flex()
+                        .min_h_0()
+                        .w_full()
+                        .px_2()
+                        .pt_3()
+                        .pb_4()
+                        .gap_2()
+                        .overflow_y_scrollbar()
+                        .child(sidebar_section_label("FILES", muted))
+                        .child(file_list),
+                ),
             )
     }
 }
