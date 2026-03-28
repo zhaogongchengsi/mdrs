@@ -1,0 +1,15 @@
+[package]
+name = "mdrs"
+version = "0.1.0"
+edition = "2021"
+description = "A lightweight Markdown editor and preview app built with Rust and gpui"
+license = "MIT"
+
+[[bin]]
+name = "mdrs"
+path = "src/main.rs"
+
+[dependencies]
+gpui = "0.2.2"
+gpui-component = "0.5.1"
+pulldown-cmark = { version = "0.13.3", default-features = false, features = ["html"] }
