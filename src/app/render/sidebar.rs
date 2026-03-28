@@ -8,6 +8,9 @@ use gpui_component::{
 
 use crate::{app::MdrsApp, app_icon::AppIcon};
 
+const SIDEBAR_SECTION_INSET_X: f32 = 8.0;
+const FILE_ROW_ICON_SLOT: f32 = 16.0;
+
 impl MdrsApp {
     pub(super) fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let border = cx.theme().colors.border;
@@ -34,6 +37,8 @@ impl MdrsApp {
                     ("workspace-file", index),
                     file.label(),
                     is_selected,
+                    fg,
+                    muted,
                     {
                         let entity = entity.clone();
                         move |_, window, cx| {
@@ -76,7 +81,7 @@ impl MdrsApp {
                         ),
                     )
                     .child(
-                        v_flex().w_full().px_3().py_3().gap_2().child(
+                        v_flex().w_full().px_2().py_3().gap_2().child(
                             Button::new("workspace-switch")
                                 .label("Switch Workspace")
                                 .ghost()
@@ -95,7 +100,7 @@ impl MdrsApp {
                             v_flex()
                                 .min_h_0()
                                 .w_full()
-                                .px_3()
+                                .px_2()
                                 .pb_4()
                                 .gap_2()
                                 .overflow_y_scrollbar()
@@ -111,13 +116,20 @@ fn render_workspace_file_item(
     id: impl Into<gpui::ElementId>,
     label: impl Into<String>,
     is_selected: bool,
+    fg: gpui::Hsla,
+    muted: gpui::Hsla,
     on_click: impl Fn(&gpui::ClickEvent, &mut gpui::Window, &mut gpui::App) + 'static,
 ) -> Button {
+    let text_color = if is_selected { fg } else { muted };
+    let icon_color = if is_selected { fg } else { muted.opacity(0.9) };
+
     Button::new(id)
         .selected(is_selected)
         .ghost()
         .w_full()
-        .px_2()
+        .px_0()
+        .py_0p5()
+        .justify_start()
         .child(
             h_flex()
                 .w_full()
@@ -125,19 +137,29 @@ fn render_workspace_file_item(
                 .gap_2()
                 .child(
                     div()
-                        .w(gpui::px(16.0))
+                        .w(gpui::px(FILE_ROW_ICON_SLOT))
                         .flex_none()
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(Icon::from(AppIcon::File).with_size(Size::Small)),
+                        .child(
+                            Icon::from(AppIcon::File)
+                                .with_size(Size::Small)
+                                .text_color(icon_color),
+                        ),
                 )
                 .child(
                     div()
                         .flex_1()
                         .min_w_0()
                         .truncate()
-                        .text_size(gpui::px(13.0))
+                        .text_size(gpui::px(12.5))
+                        .text_color(text_color)
+                        .font_weight(if is_selected {
+                            gpui::FontWeight::MEDIUM
+                        } else {
+                            gpui::FontWeight::NORMAL
+                        })
                         .child(label.into()),
                 ),
         )
@@ -146,8 +168,8 @@ fn render_workspace_file_item(
 
 fn sidebar_section_label(label: impl Into<String>, muted: gpui::Hsla) -> gpui::Div {
     div()
-        .px_2()
+        .px(gpui::px(SIDEBAR_SECTION_INSET_X))
         .text_color(muted)
-        .text_size(gpui::px(11.0))
+        .text_size(gpui::px(10.5))
         .child(label.into())
 }

@@ -37,8 +37,8 @@ impl RenderOnce for MdrsTitleBar {
                 .w_full()
                 .justify_between()
                 .items_center()
-                .px_2()
-                .pr_2()
+                .px_1p5()
+                .pr_1p5()
                 .child(div().child(left))
                 .child(right),
         )

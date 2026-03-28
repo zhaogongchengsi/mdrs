@@ -3,7 +3,7 @@ use gpui_component::{
     button::{Button, ButtonVariants},
     h_flex,
     menu::{DropdownMenu, PopupMenu, PopupMenuItem},
-    Selectable,
+    Selectable, Sizable,
 };
 
 use crate::{
@@ -17,10 +17,12 @@ pub(super) fn render_windows_controls(
 ) -> impl IntoElement {
     h_flex()
         .items_center()
-        .gap_2()
+        .gap_1()
         .child(
             Button::new("titlebar-menu")
                 .icon(AppIcon::Menu)
+                .xsmall()
+                .compact()
                 .ghost()
                 .on_click({
                     let app = app.clone();
@@ -49,6 +51,8 @@ pub(super) fn render_workspace_actions(
         Button::new("titlebar-preview")
             .icon(AppIcon::Preview)
             .label("Preview")
+            .xsmall()
+            .compact()
             .selected(pane_mode == PaneMode::Preview)
             .ghost()
             .on_click({
@@ -67,6 +71,8 @@ pub(super) fn render_workspace_actions(
             Button::new("titlebar-edit")
                 .icon(AppIcon::Edit)
                 .label("Edit")
+                .xsmall()
+                .compact()
                 .selected(pane_mode == PaneMode::Edit)
                 .ghost()
                 .on_click(move |_, _, cx| {
@@ -85,6 +91,8 @@ pub(super) fn render_settings_back(app: Entity<MdrsApp>) -> impl IntoElement {
     Button::new("titlebar-back")
         .icon(AppIcon::Back)
         .label("Back")
+        .xsmall()
+        .compact()
         .ghost()
         .on_click(move |_, _, cx| {
             app.update(cx, |app, cx| {
@@ -97,6 +105,8 @@ pub(super) fn render_settings_back(app: Entity<MdrsApp>) -> impl IntoElement {
 fn render_file_menu(app: Entity<MdrsApp>) -> impl IntoElement {
     Button::new("titlebar-file-menu")
         .label("File")
+        .xsmall()
+        .compact()
         .ghost()
         .dropdown_menu_with_anchor(Corner::BottomLeft, move |menu: PopupMenu, _window, _cx| {
             menu.item(
@@ -152,6 +162,8 @@ fn render_file_menu(app: Entity<MdrsApp>) -> impl IntoElement {
 fn render_edit_menu() -> impl IntoElement {
     Button::new("titlebar-edit-menu")
         .label("Edit")
+        .xsmall()
+        .compact()
         .ghost()
         .dropdown_menu_with_anchor(Corner::BottomLeft, |menu: PopupMenu, _window, _cx| {
             menu.item(PopupMenuItem::new("Undo").disabled(true))
