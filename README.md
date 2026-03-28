@@ -4,11 +4,12 @@ A lightweight Markdown editor and live-preview app built with Rust and [gpui](ht
 
 ## Features
 
-- Split-pane editing with live preview
+- Minimal desktop Markdown workflow with preview-first and edit modes
+- Single file launch opens preview first, then expands the editor on demand
+- Folder launch shows a workspace sidebar and file list, then previews a file before editing
+- No-argument launch starts directly in editing mode for new documents
 - Native desktop UI powered by `gpui`
-- Command-line opening for Markdown files: `cargo run -- path/to/file.md`
-- Large-file-aware reads
-- Preview protection for oversized Markdown buffers
+- Large-file-aware reads and preview protection for oversized Markdown buffers
 
 ## Large File Handling
 
@@ -28,6 +29,12 @@ Open a file directly:
 
 ```sh
 cargo run -- path/to/file.md
+```
+
+Open a workspace folder:
+
+```sh
+cargo run -- path/to/folder
 ```
 
 ## Architecture

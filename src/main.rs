@@ -4,6 +4,7 @@ mod app;
 mod editor;
 mod file_loader;
 mod preview;
+mod workspace;
 
 use std::path::PathBuf;
 
@@ -19,7 +20,7 @@ fn main() {
         gpui_component::init(cx);
 
         let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
-        
+
         // 根据平台调整窗口配置
         let titlebar_options = if cfg!(target_os = "macos") {
             // macOS 使用系统标准标题栏
@@ -34,7 +35,7 @@ fn main() {
                 ..Default::default()
             })
         };
-        
+
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
