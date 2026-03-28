@@ -14,6 +14,7 @@ use gpui_component::{
 };
 
 use crate::{
+    app_title_bar::MdrsTitleBar,
     file_loader::{
         format_bytes, load_markdown_file, LoadMarkdownError, LoadedMarkdown, ReadStrategy,
     },
@@ -29,9 +30,15 @@ enum LaunchContext {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum PaneMode {
+pub enum PaneMode {
     Preview,
     Edit,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum AppPage {
+    Workspace,
+    Settings,
 }
 
 const DEFAULT_MARKDOWN: &str = r#"# Welcome to mdrs
@@ -51,6 +58,8 @@ pub struct MdrsApp {
     _subscription: gpui::Subscription,
     launch_context: LaunchContext,
     pane_mode: PaneMode,
+    current_page: AppPage,
+    sidebar_open: bool,
     workspace_root: Option<PathBuf>,
     workspace_files: Vec<WorkspaceFile>,
     current_path: Option<PathBuf>,
@@ -107,6 +116,8 @@ impl MdrsApp {
             } else {
                 PaneMode::Preview
             },
+            current_page: AppPage::Workspace,
+            sidebar_open: launch_context == LaunchContext::Folder,
             workspace_root: None,
             workspace_files: Vec::new(),
             current_path: None,
@@ -275,7 +286,9 @@ impl MdrsApp {
     }
 
     fn has_sidebar(&self) -> bool {
-        self.launch_context == LaunchContext::Folder
+        self.current_page == AppPage::Workspace
+            && self.launch_context == LaunchContext::Folder
+            && self.sidebar_open
     }
 
     fn workspace_name(&self) -> String {
@@ -294,6 +307,31 @@ impl MdrsApp {
             .and_then(|name| name.to_str())
             .map(str::to_string)
             .unwrap_or_else(|| "Untitled.md".to_string())
+    }
+
+    fn page_title(&self) -> &'static str {
+        match self.current_page {
+            AppPage::Workspace => "Workspace",
+            AppPage::Settings => "Settings",
+        }
+    }
+
+    pub(crate) fn set_pane_mode(&mut self, pane_mode: PaneMode) {
+        self.pane_mode = pane_mode;
+    }
+
+    pub(crate) fn toggle_sidebar(&mut self) {
+        if self.launch_context == LaunchContext::Folder {
+            self.sidebar_open = !self.sidebar_open;
+        }
+    }
+
+    pub(crate) fn open_settings(&mut self) {
+        self.current_page = AppPage::Settings;
+    }
+
+    pub(crate) fn open_workspace_page(&mut self) {
+        self.current_page = AppPage::Workspace;
     }
 
     fn render_sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -369,8 +407,26 @@ impl MdrsApp {
                             .px_3()
                             .py_3()
                             .gap_2()
-                            .child(sidebar_entry("Switch Workspace", muted, border))
-                            .child(sidebar_entry("Settings", muted, border)),
+                            .child(
+                                Button::new("workspace-switch")
+                                    .label("Switch Workspace")
+                                    .ghost(),
+                            )
+                            .child(
+                                Button::new("workspace-settings")
+                                    .label("Settings")
+                                    .selected(self.current_page == AppPage::Settings)
+                                    .ghost()
+                                    .on_click({
+                                        let entity = entity.clone();
+                                        move |_, _, cx| {
+                                            entity.update(cx, |app, cx| {
+                                                app.current_page = AppPage::Settings;
+                                                cx.notify();
+                                            });
+                                        }
+                                    }),
+                            ),
                     )
                     .child(
                         div().flex_1().min_h_0().overflow_hidden().child(
@@ -498,107 +554,114 @@ impl MdrsApp {
                 ),
         )
     }
+
+    fn render_settings_page(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let border = cx.theme().colors.border;
+        let fg = cx.theme().colors.foreground;
+        let muted = cx.theme().colors.muted_foreground;
+
+        v_flex()
+            .flex_1()
+            .min_h_0()
+            .overflow_y_scrollbar()
+            .child(
+                v_flex()
+                    .w_full()
+                    .max_w(gpui::px(880.0))
+                    .mx_auto()
+                    .px_6()
+                    .py_6()
+                    .gap_4()
+                    .child(
+                        div()
+                            .text_color(fg)
+                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .text_size(gpui::px(24.0))
+                            .child("Settings"),
+                    )
+                    .child(
+                        settings_section(
+                            "Window Chrome",
+                            "Windows uses a custom VS Code-style title bar. macOS keeps the native traffic light placement.",
+                            border,
+                            fg,
+                            muted,
+                        ),
+                    )
+                    .child(
+                        settings_section(
+                            "Editor Behavior",
+                            "Scratch launches open directly in edit mode. Single files and workspace files open in preview mode first.",
+                            border,
+                            fg,
+                            muted,
+                        ),
+                    )
+                    .child(
+                        settings_section(
+                            "Preview Performance",
+                            "Large files use buffered loading, and preview rendering is capped for responsiveness.",
+                            border,
+                            fg,
+                            muted,
+                        ),
+                    ),
+            )
+    }
 }
 
 impl Render for MdrsApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let bg = cx.theme().colors.background;
         let border = cx.theme().colors.border;
-        let fg = cx.theme().colors.foreground;
         let muted = cx.theme().colors.muted_foreground;
-        let entity = cx.entity();
         let preview_stats = self.preview.read(cx).stats();
         let show_edit = self.can_edit();
 
         let mut body = h_flex().flex_1().w_full().min_h_0().overflow_hidden();
-        if self.has_sidebar() {
-            body = body.child(self.render_sidebar(cx));
-        }
+        let content: AnyElement = match self.current_page {
+            AppPage::Settings => self.render_settings_page(cx).into_any_element(),
+            AppPage::Workspace => {
+                if self.has_sidebar() {
+                    body = body.child(self.render_sidebar(cx));
+                }
 
-        let content = match self.pane_mode {
-            PaneMode::Preview => h_flex()
-                .flex_1()
-                .w_full()
-                .h_full()
-                .min_h_0()
-                .overflow_hidden()
-                .child(self.render_preview_panel(cx)),
-            PaneMode::Edit => h_flex()
-                .flex_1()
-                .w_full()
-                .h_full()
-                .min_h_0()
-                .overflow_hidden()
-                .child(self.render_editor_panel(cx))
-                .child(self.render_preview_panel(cx)),
+                match self.pane_mode {
+                    PaneMode::Preview => h_flex()
+                        .flex_1()
+                        .w_full()
+                        .h_full()
+                        .min_h_0()
+                        .overflow_hidden()
+                        .child(self.render_preview_panel(cx))
+                        .into_any_element(),
+                    PaneMode::Edit => h_flex()
+                        .flex_1()
+                        .w_full()
+                        .h_full()
+                        .min_h_0()
+                        .overflow_hidden()
+                        .child(self.render_editor_panel(cx))
+                        .child(self.render_preview_panel(cx))
+                        .into_any_element(),
+                }
+            }
         };
         body = body.child(content);
 
-        let mut controls = h_flex().gap_1();
-        controls = controls.child(
-            Button::new("preview-mode")
-                .label("Preview")
-                .selected(self.pane_mode == PaneMode::Preview)
-                .ghost()
-                .on_click({
-                    let entity = entity.clone();
-                    move |_, _, cx| {
-                        entity.update(cx, |app, cx| {
-                            app.pane_mode = PaneMode::Preview;
-                            cx.notify();
-                        });
-                    }
-                }),
-        );
-        if show_edit {
-            controls = controls.child(
-                Button::new("edit-mode")
-                    .label("Edit")
-                    .selected(self.pane_mode == PaneMode::Edit)
-                    .ghost()
-                    .on_click({
-                        let entity = entity.clone();
-                        move |_, _, cx| {
-                            entity.update(cx, |app, cx| {
-                                app.pane_mode = PaneMode::Edit;
-                                cx.notify();
-                            });
-                        }
-                    }),
-            );
-        }
-
         v_flex()
             .size_full()
+            .min_h_0()
             .bg(bg)
-            .child(
-                h_flex()
-                    .w_full()
-                    .flex_shrink_0()
-                    .px_4()
-                    .py_3()
-                    .justify_between()
-                    .items_center()
-                    .border_b_1()
-                    .border_color(border)
-                    .child(
-                        v_flex()
-                            .gap_1()
-                            .child(
-                                div()
-                                    .text_color(fg)
-                                    .font_weight(gpui::FontWeight::SEMIBOLD)
-                                    .child("mdrs"),
-                            )
-                            .child(
-                                div()
-                                    .text_color(muted)
-                                    .text_size(gpui::px(12.0))
-                                    .child(self.source_label()),
-                            ),
-                    )
-                    .child(controls),
-            )
+            .child(div().w_full().flex_shrink_0().child(MdrsTitleBar {
+                app: cx.entity(),
+                pane_mode: self.pane_mode,
+                current_page: self.current_page,
+                show_edit,
+                sidebar_toggleable: self.launch_context == LaunchContext::Folder,
+                source_label: self.source_label(),
+                page_title: self.page_title(),
+            }))
             .child(body)
             .child(
                 h_flex()
@@ -659,14 +722,31 @@ fn panel_header(
     )
 }
 
-fn sidebar_entry(label: &str, muted: gpui::Hsla, border: gpui::Hsla) -> gpui::Div {
-    div()
-        .w_full()
-        .px_3()
-        .py_2()
-        .border_1()
-        .border_color(border)
-        .text_color(muted)
-        .text_size(gpui::px(12.0))
-        .child(label.to_string())
+fn settings_section(
+    title: &str,
+    description: &str,
+    border: gpui::Hsla,
+    fg: gpui::Hsla,
+    muted: gpui::Hsla,
+) -> gpui::Div {
+    div().w_full().border_1().border_color(border).child(
+        v_flex()
+            .w_full()
+            .px_4()
+            .py_4()
+            .gap_2()
+            .child(
+                div()
+                    .text_color(fg)
+                    .font_weight(gpui::FontWeight::MEDIUM)
+                    .child(title.to_string()),
+            )
+            .child(
+                div()
+                    .text_color(muted)
+                    .text_size(gpui::px(13.0))
+                    .line_height(gpui::relative(1.6))
+                    .child(description.to_string()),
+            ),
+    )
 }
