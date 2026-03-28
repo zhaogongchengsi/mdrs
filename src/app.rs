@@ -27,17 +27,6 @@ pub enum AppPage {
     Settings,
 }
 
-const DEFAULT_MARKDOWN: &str = r#"# Welcome to mdrs
-
-A **lightweight** Markdown editor built with Rust and [gpui](https://gpui.rs).
-
-## Start here
-
-- Create a new document from scratch
-- Write Markdown in the editor
-- See the preview update beside it
-"#;
-
 pub struct MdrsApp {
     editor: Entity<InputState>,
     preview: Entity<MarkdownPreview>,

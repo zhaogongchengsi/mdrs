@@ -12,7 +12,7 @@ use crate::{
     workspace::collect_markdown_files,
 };
 
-use super::{AppPage, LaunchContext, MdrsApp, PaneMode, DEFAULT_MARKDOWN};
+use super::{AppPage, LaunchContext, MdrsApp, PaneMode};
 
 impl MdrsApp {
     pub fn new(
@@ -21,10 +21,7 @@ impl MdrsApp {
         cx: &mut Context<Self>,
     ) -> Self {
         let launch_context = determine_launch_context(initial_target.as_deref());
-        let initial_buffer = match launch_context {
-            LaunchContext::Scratch => DEFAULT_MARKDOWN,
-            LaunchContext::SingleFile | LaunchContext::Folder => "",
-        };
+        let initial_buffer = "";
 
         let editor = cx.new(|cx| {
             InputState::new(window, cx)
