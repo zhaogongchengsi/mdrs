@@ -9,6 +9,7 @@ use gpui_component::input::{InputEvent, InputState};
 use crate::{
     file_loader::{format_bytes, load_markdown_file, LoadMarkdownError, LoadedMarkdown},
     preview::{MarkdownPreview, PreviewStats},
+    style_config::load_markdown_style,
     workspace::collect_markdown_files,
 };
 
@@ -27,11 +28,15 @@ impl MdrsApp {
             InputState::new(window, cx)
                 .multi_line(true)
                 .soft_wrap(true)
+                .code_editor("markdown")
+                .line_number(true)
                 .default_value(initial_buffer)
         });
 
+        let markdown_style = load_markdown_style();
         let initial_text = editor.read(cx).value().to_string();
-        let preview = cx.new(|_cx| MarkdownPreview::new(&initial_text));
+        let preview_style = markdown_style.clone();
+        let preview = cx.new(|_cx| MarkdownPreview::new(&initial_text, preview_style));
 
         let subscription = cx.subscribe(
             &editor,

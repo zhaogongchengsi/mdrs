@@ -1,11 +1,12 @@
 use std::fmt;
 use std::fs::{self, File};
-use std::io::{self, BufReader, Read};
+use std::io::{self, BufReader, Cursor};
 use std::path::{Path, PathBuf};
+
+use ropey::Rope;
 
 const DIRECT_READ_LIMIT: u64 = 1024 * 1024;
 const BUFFER_CAPACITY: usize = 256 * 1024;
-const MAX_PREALLOC_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReadStrategy {
@@ -32,25 +33,16 @@ pub struct LoadedMarkdown {
 
 #[derive(Debug)]
 pub enum LoadMarkdownError {
-    Io {
-        path: PathBuf,
-        source: io::Error,
-    },
-    InvalidUtf8 {
-        path: PathBuf,
-        source: std::string::FromUtf8Error,
-    },
-    TooLarge {
-        path: PathBuf,
-        bytes: u64,
-    },
+    Io { path: PathBuf, source: io::Error },
+    Decode { path: PathBuf, source: io::Error },
+    TooLarge { path: PathBuf, bytes: u64 },
 }
 
 impl LoadMarkdownError {
     pub fn path(&self) -> &Path {
         match self {
             Self::Io { path, .. } => path,
-            Self::InvalidUtf8 { path, .. } => path,
+            Self::Decode { path, .. } => path,
             Self::TooLarge { path, .. } => path,
         }
     }
@@ -60,7 +52,10 @@ impl fmt::Display for LoadMarkdownError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io { source, .. } => write!(f, "{source}"),
-            Self::InvalidUtf8 { source, .. } => write!(f, "file is not valid UTF-8: {source}"),
+            Self::Decode { source, .. } if source.kind() == io::ErrorKind::InvalidData => {
+                write!(f, "file is not valid UTF-8: {source}")
+            }
+            Self::Decode { source, .. } => write!(f, "failed to decode file: {source}"),
             Self::TooLarge { bytes, .. } => write!(
                 f,
                 "file is too large to load into the editor ({})",
@@ -84,35 +79,31 @@ pub fn load_markdown_file(path: impl Into<PathBuf>) -> Result<LoadedMarkdown, Lo
         return Err(LoadMarkdownError::TooLarge { path, bytes });
     }
 
-    let (raw, read_strategy) = if bytes <= DIRECT_READ_LIMIT {
+    let (rope, read_strategy) = if bytes <= DIRECT_READ_LIMIT {
         let raw = fs::read(&path).map_err(|source| LoadMarkdownError::Io {
             path: path.clone(),
             source,
         })?;
-        (raw, ReadStrategy::Direct)
+        let rope =
+            Rope::from_reader(Cursor::new(raw)).map_err(|source| LoadMarkdownError::Decode {
+                path: path.clone(),
+                source,
+            })?;
+        (rope, ReadStrategy::Direct)
     } else {
         let file = File::open(&path).map_err(|source| LoadMarkdownError::Io {
             path: path.clone(),
             source,
         })?;
-        let mut reader = BufReader::with_capacity(BUFFER_CAPACITY, file);
-        let capacity = usize::try_from(bytes)
-            .unwrap_or(MAX_PREALLOC_BYTES)
-            .min(MAX_PREALLOC_BYTES);
-        let mut raw = Vec::with_capacity(capacity);
-        reader
-            .read_to_end(&mut raw)
-            .map_err(|source| LoadMarkdownError::Io {
-                path: path.clone(),
-                source,
-            })?;
-        (raw, ReadStrategy::Buffered)
+        let reader = BufReader::with_capacity(BUFFER_CAPACITY, file);
+        let rope = Rope::from_reader(reader).map_err(|source| LoadMarkdownError::Decode {
+            path: path.clone(),
+            source,
+        })?;
+        (rope, ReadStrategy::Buffered)
     };
 
-    let text = String::from_utf8(raw).map_err(|source| LoadMarkdownError::InvalidUtf8 {
-        path: path.clone(),
-        source,
-    })?;
+    let text = rope.to_string();
 
     Ok(LoadedMarkdown {
         path,

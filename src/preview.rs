@@ -3,6 +3,7 @@ use gpui_component::{scroll::ScrollableElement, v_flex, ActiveTheme};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 use crate::file_loader::format_bytes;
+use crate::style_config::MarkdownStyle;
 
 const MAX_PREVIEW_BYTES: usize = 512 * 1024;
 
@@ -271,12 +272,17 @@ fn build_preview(src: &str) -> (Vec<MdBlock>, PreviewStats) {
 pub struct MarkdownPreview {
     blocks: Vec<MdBlock>,
     stats: PreviewStats,
+    style: MarkdownStyle,
 }
 
 impl MarkdownPreview {
-    pub fn new(src: &str) -> Self {
+    pub fn new(src: &str, style: MarkdownStyle) -> Self {
         let (blocks, stats) = build_preview(src);
-        Self { blocks, stats }
+        Self {
+            blocks,
+            stats,
+            style,
+        }
     }
 
     pub fn set_markdown(&mut self, src: &str) -> PreviewStats {
@@ -300,12 +306,16 @@ impl Render for MarkdownPreview {
         let code_bg = theme.colors.secondary;
         let accent = theme.colors.accent;
 
-        let mut container = v_flex().p_4().gap_3().w_full();
+        let mut container = v_flex()
+            .p_4()
+            .gap(px(self.style.block_gap))
+            .w_full()
+            .text_size(px(self.style.paragraph_size));
 
         for block in &self.blocks {
             match block {
                 MdBlock::Heading { level, text } => {
-                    let (size, weight) = heading_style(*level);
+                    let (size, weight) = heading_style(*level, &self.style);
                     container = container.child(
                         div()
                             .text_color(fg)
@@ -318,7 +328,8 @@ impl Render for MarkdownPreview {
                     );
                 }
                 MdBlock::Paragraph { spans } => {
-                    container = container.child(render_spans(spans, fg, muted, code_bg));
+                    container =
+                        container.child(render_spans(spans, fg, muted, code_bg, &self.style));
                 }
                 MdBlock::CodeBlock { code, lang } => {
                     let mut code_block = div()
@@ -344,7 +355,7 @@ impl Render for MarkdownPreview {
                             div()
                                 .p_3()
                                 .font_family("monospace")
-                                .text_size(px(13.0))
+                                .text_size(px(self.style.code_block_size))
                                 .text_color(fg)
                                 .child(code.trim_end_matches('\n').to_string()),
                         ),
@@ -361,7 +372,7 @@ impl Render for MarkdownPreview {
                             .border_l_2()
                             .border_color(accent)
                             .text_color(muted)
-                            .child(render_spans(spans, muted, muted, code_bg)),
+                            .child(render_spans(spans, muted, muted, code_bg, &self.style)),
                     );
                 }
                 MdBlock::List { ordered, items } => {
@@ -378,7 +389,7 @@ impl Render for MarkdownPreview {
                                 .flex_row()
                                 .gap_1()
                                 .child(div().text_color(muted).flex_shrink_0().child(bullet))
-                                .child(render_spans(item_spans, fg, muted, code_bg)),
+                                .child(render_spans(item_spans, fg, muted, code_bg, &self.style)),
                         );
                     }
                     container = container.child(list_div);
@@ -391,7 +402,7 @@ impl Render for MarkdownPreview {
                             .border_color(border)
                             .bg(code_bg)
                             .p_3()
-                            .text_size(px(12.0))
+                            .text_size(px(self.style.paragraph_size - 2.0))
                             .text_color(muted)
                             .child(text.clone()),
                     );
@@ -403,14 +414,14 @@ impl Render for MarkdownPreview {
     }
 }
 
-fn heading_style(level: u8) -> (f32, gpui::FontWeight) {
+fn heading_style(level: u8, style: &MarkdownStyle) -> (f32, gpui::FontWeight) {
     match level {
-        1 => (32.0, gpui::FontWeight::BOLD),
-        2 => (26.0, gpui::FontWeight::BOLD),
-        3 => (22.0, gpui::FontWeight::SEMIBOLD),
-        4 => (18.0, gpui::FontWeight::SEMIBOLD),
-        5 => (16.0, gpui::FontWeight::MEDIUM),
-        _ => (14.0, gpui::FontWeight::MEDIUM),
+        1 => (style.heading_h1_size, gpui::FontWeight::BOLD),
+        2 => (style.heading_h2_size, gpui::FontWeight::BOLD),
+        3 => (style.heading_h3_size, gpui::FontWeight::SEMIBOLD),
+        4 => (style.heading_h4_size, gpui::FontWeight::SEMIBOLD),
+        5 => (style.heading_h5_size, gpui::FontWeight::MEDIUM),
+        _ => (style.heading_h6_size, gpui::FontWeight::MEDIUM),
     }
 }
 
@@ -419,6 +430,7 @@ fn render_spans(
     fg: gpui::Hsla,
     muted: gpui::Hsla,
     code_bg: gpui::Hsla,
+    style: &MarkdownStyle,
 ) -> gpui::Div {
     let mut row = div().flex().flex_row().flex_wrap().gap_x_1().text_color(fg);
     for span in spans {
@@ -436,7 +448,7 @@ fn render_spans(
         if span.code {
             elem = elem
                 .font_family("monospace")
-                .text_size(px(13.0))
+                .text_size(px(style.inline_code_size))
                 .px_1()
                 .rounded_sm()
                 .bg(code_bg)
