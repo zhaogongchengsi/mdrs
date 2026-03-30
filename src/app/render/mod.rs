@@ -2,9 +2,13 @@ mod panels;
 mod settings;
 mod sidebar;
 
-use gpui::{div, AnyElement, Context, IntoElement, ParentElement, Render, Styled, Window};
+use gpui::{
+    div, AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Render, Styled,
+    Window,
+};
 use gpui_component::{h_flex, v_flex, ActiveTheme};
 
+use crate::actions;
 use crate::app_title_bar::MdrsTitleBar;
 
 use super::{AppPage, LaunchContext, MdrsApp, PaneMode};
@@ -53,6 +57,27 @@ impl Render for MdrsApp {
             .size_full()
             .min_h_0()
             .bg(bg)
+            // ── macOS native top-menu action handlers ──────────────────────────
+            .on_action(cx.listener(|this, _: &actions::OpenFile, window, cx| {
+                this.prompt_open_file(window, cx);
+            }))
+            .on_action(cx.listener(|this, _: &actions::OpenFolder, window, cx| {
+                this.prompt_open_folder(window, cx);
+            }))
+            .on_action(cx.listener(|this, _: &actions::SaveFile, window, cx| {
+                this.save_document(window, cx);
+            }))
+            .on_action(cx.listener(|this, _: &actions::OpenSettings, _window, cx| {
+                this.open_settings();
+                cx.notify();
+            }))
+            .on_action(
+                cx.listener(|this, _: &actions::ToggleSidebar, _window, cx| {
+                    this.toggle_sidebar();
+                    cx.notify();
+                }),
+            )
+            // ──────────────────────────────────────────────────────────────────
             .child(div().w_full().flex_shrink_0().child(MdrsTitleBar {
                 app: cx.entity(),
                 pane_mode: self.pane_mode,

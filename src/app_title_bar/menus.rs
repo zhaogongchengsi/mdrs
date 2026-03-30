@@ -41,6 +41,36 @@ pub(super) fn render_windows_controls(
         .child(render_edit_menu())
 }
 
+pub(super) fn render_macos_controls(
+    app: Entity<MdrsApp>,
+    sidebar_toggleable: bool,
+) -> impl IntoElement {
+    h_flex()
+        .items_center()
+        .gap_1()
+        .child(
+            Button::new("titlebar-menu")
+                .icon(AppIcon::Menu)
+                .xsmall()
+                .compact()
+                .ghost()
+                .on_click({
+                    let app = app.clone();
+                    move |_, _, cx| {
+                        if !sidebar_toggleable {
+                            return;
+                        }
+                        app.update(cx, |app, cx| {
+                            app.toggle_sidebar();
+                            cx.notify();
+                        });
+                    }
+                }),
+        )
+        .child(render_file_menu(app.clone()))
+        .child(render_edit_menu())
+}
+
 pub(super) fn render_workspace_actions(
     app: Entity<MdrsApp>,
     pane_mode: PaneMode,

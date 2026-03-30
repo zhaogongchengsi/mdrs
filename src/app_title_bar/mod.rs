@@ -22,6 +22,11 @@ impl RenderOnce for MdrsTitleBar {
                 self.app.clone(),
                 self.sidebar_toggleable,
             ));
+        } else if cfg!(target_os = "macos") {
+            left = left.child(menus::render_macos_controls(
+                self.app.clone(),
+                self.sidebar_toggleable,
+            ));
         }
 
         let right = match self.current_page {
