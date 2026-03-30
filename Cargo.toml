@@ -13,13 +13,13 @@ path = "src/main.rs"
 gpui = "0.2.2"
 gpui-component = "0.5.1"
 pulldown-cmark = { version = "0.13.3", default-features = false, features = ["html"] }
+rust-embed = "8.11.0"
 
 [package.metadata.packager]
 product-name = "MDRS"
 identifier = "com.zhaogongchengsi.mdrs"
 formats = ["dmg", "nsis"]
 icons = ["src/assets/icon_1024.icns", "src/assets/icon_1024.ico"]
-resources = [{ src = "src/assets", target = "assets" }]
 license-file = "LICENSE"
 out-dir = "dist/packager"
 before-packaging-command = "cargo build --release"

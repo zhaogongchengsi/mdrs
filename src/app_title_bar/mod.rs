@@ -16,7 +16,7 @@ pub struct MdrsTitleBar {
 
 impl RenderOnce for MdrsTitleBar {
     fn render(self, _window: &mut Window, _cx: &mut gpui::App) -> impl IntoElement {
-        let mut left = h_flex().items_center().gap_1();
+        let mut left = h_flex().h_full().items_center().gap_1();
         if cfg!(target_os = "windows") {
             left = left.child(menus::render_windows_controls(
                 self.app.clone(),
@@ -40,11 +40,12 @@ impl RenderOnce for MdrsTitleBar {
         TitleBar::new().child(
             h_flex()
                 .w_full()
+                .h_full()
                 .justify_between()
                 .items_center()
                 .px_1p5()
                 .pr_1p5()
-                .child(div().child(left))
+                .child(div().h_full().child(left))
                 .child(right),
         )
     }

@@ -21,7 +21,7 @@ impl IconNamed for AppIcon {
             Self::Folder => "icons/folder.svg",
             Self::Menu => "icons/menu.svg",
             Self::Preview => "icons/preview.svg",
-            Self::Settings => "icons/setting.svg",
+            Self::Settings => "icons/settings.svg",
         }
         .into()
     }

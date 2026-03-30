@@ -22,7 +22,7 @@ fn main() {
     let initial_file = std::env::args_os().nth(1).map(PathBuf::from);
 
     Application::new()
-        .with_assets(assets::AppAssets::new())
+        .with_assets(assets::AppAssets)
         .run(move |cx| {
             gpui_component::init(cx);
             actions::register(cx);

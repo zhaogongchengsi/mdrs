@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use gpui::{prelude::*, Context, Entity, PathPromptOptions, Window};
+use gpui::{prelude::*, App, Context, Entity, FocusHandle, Focusable, PathPromptOptions, Window};
 use gpui_component::input::{InputEvent, InputState};
 
 use crate::{
@@ -424,6 +424,16 @@ impl MdrsApp {
         self.current_page == AppPage::Workspace
             && self.launch_context == LaunchContext::Folder
             && self.sidebar_open
+    }
+
+    pub(crate) fn sidebar_visible(&self) -> bool {
+        self.current_page == AppPage::Workspace
+            && self.launch_context == LaunchContext::Folder
+            && self.sidebar_open
+    }
+
+    pub(crate) fn menu_action_context(&self, cx: &App) -> FocusHandle {
+        self.editor.read(cx).focus_handle(cx)
     }
 }
 

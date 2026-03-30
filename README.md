@@ -54,13 +54,13 @@ Package for Windows on a Windows machine:
 Notes:
 
 - The packaged icons live at `src/assets/icon_1024.icns` and `src/assets/icon_1024.ico`.
+- Runtime SVG icons live under `src/assets/icons/` and are embedded into the binary with `rust-embed`, following the `gpui-component` assets pattern.
 - If you refresh the AppIcon asset catalog later, rebuild the Windows `.ico` with:
 
 ```sh
 cargo run --offline --manifest-path tools/ico-builder/Cargo.toml -- src/assets/AppIcon.appiconset src/assets/icon_1024.ico
 ```
 
-- Runtime assets are bundled into the app package from `src/assets/`.
 - Output artifacts are written to `dist/packager/`.
 - Windows packaging is configured for `nsis` now, and the script also accepts `wix` as an optional format.
 

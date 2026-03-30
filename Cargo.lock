@@ -3334,6 +3334,7 @@ dependencies = [
  "gpui",
  "gpui-component",
  "pulldown-cmark",
+ "rust-embed",
 ]
 
 [[package]]
