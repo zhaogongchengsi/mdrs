@@ -1,8 +1,0 @@
-[package]
-name = "ico-builder"
-version = "0.1.0"
-edition = "2021"
-publish = false
-
-[dependencies]
-image = { version = "=0.25.9", default-features = false, features = ["ico", "png"] }
