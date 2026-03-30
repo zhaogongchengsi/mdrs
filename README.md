@@ -37,6 +37,27 @@ Open a workspace folder:
 cargo run -- path/to/folder
 ```
 
+## Package for macOS
+
+Generate the packaged icon files once:
+
+```sh
+./scripts/generate-icons.sh
+```
+
+Use the project script to build a macOS installer package:
+
+```sh
+./scripts/package-macos.sh
+```
+
+Notes:
+
+- `./scripts/generate-icons.sh` generates `src/assets/logo.icns` and `src/assets/logo.ico` from `src/assets/logo.png`.
+- Runtime assets are bundled into the app package from `src/assets/`.
+- Output artifacts are written to `dist/packager/`.
+- Windows packaging is not enabled yet, but the packager config already reserves a section for it.
+
 ## Architecture
 
 | File | Purpose |

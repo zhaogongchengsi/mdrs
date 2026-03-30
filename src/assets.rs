@@ -13,8 +13,28 @@ pub struct AppAssets {
 impl AppAssets {
     pub fn new() -> Self {
         Self {
-            base: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/assets"),
+            base: Self::detect_base(),
         }
+    }
+
+    fn detect_base() -> PathBuf {
+        Self::packaged_base_path()
+            .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/assets"))
+    }
+
+    fn packaged_base_path() -> Option<PathBuf> {
+        let executable = std::env::current_exe().ok()?;
+        let mut candidates = Vec::new();
+
+        if let Some(exe_dir) = executable.parent() {
+            candidates.push(exe_dir.join("assets"));
+
+            if let Some(contents_dir) = exe_dir.parent() {
+                candidates.push(contents_dir.join("Resources/assets"));
+            }
+        }
+
+        candidates.into_iter().find(|path| path.exists())
     }
 
     fn resolve_path(&self, path: &str) -> PathBuf {

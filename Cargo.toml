@@ -14,6 +14,26 @@ gpui = "0.2.2"
 gpui-component = "0.5.1"
 pulldown-cmark = { version = "0.13.3", default-features = false, features = ["html"] }
 
+[package.metadata.packager]
+product-name = "MDRS"
+identifier = "com.zhaogongchengsi.mdrs"
+formats = ["dmg"]
+icons = ["src/assets/logo.icns", "src/assets/logo.ico"]
+resources = [{ src = "src/assets", target = "assets" }]
+license-file = "LICENSE"
+out-dir = "dist/packager"
+before-packaging-command = "cargo build --release"
+
+[[package.metadata.packager.binaries]]
+path = "mdrs"
+main = true
+
+[package.metadata.packager.macos]
+# Reserved for future macOS signing and notarization settings.
+
+[package.metadata.packager.windows]
+# Reserved for future Windows packaging settings.
+
 # 平台特定的优化
 [target.'cfg(target_os = "macos")'.dependencies]
 
