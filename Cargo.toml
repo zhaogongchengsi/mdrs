@@ -17,8 +17,8 @@ pulldown-cmark = { version = "0.13.3", default-features = false, features = ["ht
 [package.metadata.packager]
 product-name = "MDRS"
 identifier = "com.zhaogongchengsi.mdrs"
-formats = ["dmg"]
-icons = ["src/assets/logo.icns", "src/assets/logo.ico"]
+formats = ["dmg", "nsis"]
+icons = ["src/assets/icon_1024.icns", "src/assets/icon_1024.ico"]
 resources = [{ src = "src/assets", target = "assets" }]
 license-file = "LICENSE"
 out-dir = "dist/packager"
@@ -32,7 +32,11 @@ main = true
 # Reserved for future macOS signing and notarization settings.
 
 [package.metadata.packager.windows]
-# Reserved for future Windows packaging settings.
+# Reserved for future Windows-specific signing settings.
+
+[package.metadata.packager.nsis]
+installer-icon = "src/assets/icon_1024.ico"
+installer-mode = "currentUser"
 
 # 平台特定的优化
 [target.'cfg(target_os = "macos")'.dependencies]

@@ -39,24 +39,30 @@ cargo run -- path/to/folder
 
 ## Package for macOS
 
-Generate the packaged icon files once:
-
-```sh
-./scripts/generate-icons.sh
-```
-
 Use the project script to build a macOS installer package:
 
 ```sh
 ./scripts/package-macos.sh
 ```
 
+Package for Windows on a Windows machine:
+
+```powershell
+.\scripts\package-windows.ps1
+```
+
 Notes:
 
-- `./scripts/generate-icons.sh` generates `src/assets/logo.icns` and `src/assets/logo.ico` from `src/assets/logo.png`.
+- The packaged icons live at `src/assets/icon_1024.icns` and `src/assets/icon_1024.ico`.
+- If you refresh the AppIcon asset catalog later, rebuild the Windows `.ico` with:
+
+```sh
+cargo run --offline --manifest-path tools/ico-builder/Cargo.toml -- src/assets/AppIcon.appiconset src/assets/icon_1024.ico
+```
+
 - Runtime assets are bundled into the app package from `src/assets/`.
 - Output artifacts are written to `dist/packager/`.
-- Windows packaging is not enabled yet, but the packager config already reserves a section for it.
+- Windows packaging is configured for `nsis` now, and the script also accepts `wix` as an optional format.
 
 ## Architecture
 

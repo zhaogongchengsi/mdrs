@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-MACOS_ICON="$ROOT_DIR/src/assets/logo.icns"
+MACOS_ICON="$ROOT_DIR/src/assets/icon_1024.icns"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This packaging script only supports macOS." >&2
@@ -27,7 +27,6 @@ mkdir -p "$CLANG_MODULE_CACHE_PATH"
 
 if [[ ! -f "$MACOS_ICON" ]]; then
   echo "Missing macOS icon: $MACOS_ICON" >&2
-  echo "Run ./scripts/generate-icons.sh once to generate the packaged icon files." >&2
   exit 1
 fi
 
