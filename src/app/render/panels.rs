@@ -45,6 +45,7 @@ impl MdrsApp {
 
     pub(super) fn render_editor_panel(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let border = cx.theme().colors.border;
+        let muted = cx.theme().colors.muted_foreground;
 
         div()
             .flex_1()
@@ -54,14 +55,34 @@ impl MdrsApp {
             .border_r_1()
             .border_color(border)
             .child(
-                v_flex().size_full().min_h_0().child(
-                    div()
-                        .flex_1()
-                        .min_h_0()
-                        .px_4()
-                        .py_3()
-                        .child(Input::new(&self.editor).h_full()),
-                ),
+                v_flex()
+                    .size_full()
+                    .min_h_0()
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .px_4()
+                            .py_3()
+                            .child(Input::new(&self.editor).h_full()),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_h_0()
+                            .border_t_1()
+                            .border_color(border)
+                            .px_4()
+                            .py_2()
+                            .child(
+                                div()
+                                    .text_size(px(12.0))
+                                    .text_color(muted)
+                                    .pb_2()
+                                    .child("Live Render"),
+                            )
+                            .child(self.render_preview_content(cx)),
+                    ),
             )
     }
 

@@ -41,7 +41,6 @@ impl Render for MdrsApp {
                         .min_h_0()
                         .overflow_hidden()
                         .child(self.render_editor_panel(cx))
-                        .child(self.render_preview_panel(cx))
                         .into_any_element(),
                 }
             }

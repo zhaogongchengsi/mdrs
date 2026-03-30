@@ -7,6 +7,7 @@ mod assets;
 mod editor;
 mod file_loader;
 mod preview;
+mod style_config;
 mod workspace;
 
 use std::path::PathBuf;

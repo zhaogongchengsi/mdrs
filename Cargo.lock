@@ -3334,6 +3334,9 @@ dependencies = [
  "gpui",
  "gpui-component",
  "pulldown-cmark",
+ "ropey",
+ "serde",
+ "toml 0.8.23",
 ]
 
 [[package]]
